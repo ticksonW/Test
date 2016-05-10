@@ -2,30 +2,27 @@ import numpy as np
 import theano as th
 import theano.tensor as T
 
-import os
-import sys
-utility_dir  = os.path.abspath(os.pardir)+'/data/'
-sys.path.append(utility_dir)
-
-
 def ZCA(data, n_component=2):
+    '''
+    m is the number of data points
+    n is the dimension of the data
+
+    :param data: <numpy matrix, (m,n)> imput data
+    :param n_component: <int> number of dimension to be extracted
+    :return:
+    '''
 
     # data standardization
     x = T.matrix('x')
     eps = T.scalar('eps')
     y = (x - T.mean(x, axis=0)) / T.sqrt(T.var(x) + eps)
     standardize = th.function([x, eps], y)
-    #s_data = standardize(data, 10)
 
     # zca whitening
     x_n = T.matrix('x_n')  # normalized input
     eps2 = T.scalar('eps2')  # small esp to prevent div by zero
-    #x_c = x_n - T.mean(x_n, 0)  # centered input
     x_cov = T.dot(x_n.T, x_n) / x_n.shape[0]  # variance of input
     u, s, v = T.nlinalg.svd(x_cov)
-
-    # get_s = th.function([x_n], s)
-    # sigma = get_s(n_data)
 
     z = T.dot(T.dot(u, T.nlinalg.diag(1. / T.sqrt(s + eps2))), u.T)
     x_zca = T.dot(x_n, z.T[:, :n_component])
@@ -35,6 +32,25 @@ def ZCA(data, n_component=2):
 
 
 def kmeans(data, k):
+    '''
+    m is the number of data points
+    n is the dimension of the data
+    k is the number of data
+
+    :param data: <numpy matrix, (m,n)> input data
+
+    :param k: <int> number of clusters
+
+    :return [D_optimal, S_optimal, cluster_idx_opt, min_err]:
+        -D_optimal <numpy matrix, (n,k)> is the optimal centroid matrix.
+        -S_optimal <numpy matrix, (k,m)> is the optimal selection matrix
+        -cluster_idx_opt <numpy vector, (m,)> is the optimal cluster index
+        for the data points
+        -min_err <float> is the minimum mean error of the instantiation which
+        yields the optimal parameters
+    '''
+
+    print('...kmeans: starting ZCA_whitening')
 
     n = data.shape[1] #n-dimension
     m = data.shape[0] #n-data
@@ -44,6 +60,7 @@ def kmeans(data, k):
 
     #The literature uses the transpose version
     X_ZCA = ZCA(data, n).T
+    print('done ZCA_whitening, starting kmeans')
 
     X = th.shared(
         value=X_ZCA,
@@ -126,5 +143,7 @@ def kmeans(data, k):
     # plt.scatter(X_ZCA[0,:], X_ZCA[1,:], 50, cluster_idx_opt)
     # plt.show()
     # plt.savefig("kmeans.png")
+
+    print('kmeans: finished processing optimizing kmeans...')
     return [D_optimal, S_optimal, cluster_idx_opt, min_err]
 
